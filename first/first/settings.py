@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://localhost:5000",
 ]
 
 
@@ -46,6 +47,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'corsheaders',
     'rest_framework',
+    'rest_framework.authtoken',
     'appname'
 ]
 
@@ -81,16 +83,31 @@ TEMPLATES = [
 WSGI_APPLICATION = 'first.wsgi.application'
 
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
+
+
+
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'asd01',  # Kullandığınız veritabanı adı
+        'USER': 'postgres',    # Veritabanı kullanıcı adınız
+        'PASSWORD': 'admin',        # Kullanıcı şifreniz
+        'HOST': 'localhost',        # Veritabanı sunucusu (örn. 'localhost' veya '127.0.0.1')
+        'PORT': '5432',             # PostgreSQL için varsayılan port
     }
 }
-
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -122,17 +139,23 @@ USE_I18N = True
 
 USE_TZ = True
 
+TOKEN_EXPIRED_AFTER_SECONDS = 604800  # 7 days
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 STATIC_URL = 'static/'
-
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),  # Proje düzeyinde static klasörü
+]
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
+#AUTH_USER_MODEL = 'appname.CustomUser'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
