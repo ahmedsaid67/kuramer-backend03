@@ -1,10 +1,12 @@
 from django.urls import path,include
-from .views import SliderListView, MenuViewSet, MenuItemListCreateView, MenuItemByMenuView, MenuItemDetailView, MenuSelectedItemList
+from .views import SliderListView, MenuViewSet, MenuItemListCreateView, MenuItemByMenuView,\
+    MenuItemDetailView, MenuSelectedItemList,CustomAuthToken,CheckToken,UserInfoView
 from rest_framework.routers import DefaultRouter
-from .views import ObtainExpiringAuthToken, VerifyToken, CurrentUserView
 from .views import PersonelTuruViewSet,PersonellerViewSet
 from django.conf import settings
 from django.conf.urls.static import static
+
+
 
 router = DefaultRouter()
 router.register(r'menus', MenuViewSet)
@@ -37,9 +39,9 @@ urlpatterns = [
     path('', include(router_personel.urls)),
 
     #auth apileri
-    path('token/login/', ObtainExpiringAuthToken.as_view()),
-    path('token/verify/', VerifyToken.as_view()),
-    path('auth/users/me/', CurrentUserView.as_view()),
+    path('token/', CustomAuthToken.as_view(), name='api-token'),
+    path('check-token/', CheckToken.as_view(), name='check-token'),
+    path('user-info/', UserInfoView.as_view(), name='user-info'),
 
 
 
