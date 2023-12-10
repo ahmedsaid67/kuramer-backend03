@@ -180,3 +180,14 @@ class PersonellerViewSet(viewsets.ModelViewSet):
         # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
         PersonelTuru.objects.filter(id__in=ids).update(is_removed=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+from rest_framework.mixins import ListModelMixin
+from rest_framework.generics import GenericAPIView
+class PersonellerListView(ListModelMixin, GenericAPIView):
+    queryset = Persons.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = PersonellerSerializer
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
