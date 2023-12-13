@@ -149,9 +149,11 @@ class MenuSelectedItemList(generics.ListAPIView):
 
 
 # Personeller
+#personeltürü
 from .models import PersonelTuru
 from .serializers import PersonelTuruSerializer
 from rest_framework.decorators import action
+
 class PersonelTuruViewSet(viewsets.ModelViewSet):
     queryset = PersonelTuru.objects.filter(is_removed=False).order_by('-id')
     serializer_class = PersonelTuruSerializer
@@ -164,6 +166,20 @@ class PersonelTuruViewSet(viewsets.ModelViewSet):
         PersonelTuru.objects.filter(id__in=ids).update(is_removed=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+from rest_framework.mixins import ListModelMixin
+from rest_framework.generics import GenericAPIView
+
+class PersonelTuruListView(ListModelMixin, GenericAPIView):
+    queryset = PersonelTuru.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = PersonelTuruSerializer
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+#personeller
 
 from .models import Persons
 from .serializers import PersonellerSerializer
@@ -178,16 +194,5 @@ class PersonellerViewSet(viewsets.ModelViewSet):
         # Güvenli bir şekilde int listesi oluştur
         ids = [int(id) for id in ids if id.isdigit()]
         # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
-        PersonelTuru.objects.filter(id__in=ids).update(is_removed=True)
+        Persons.objects.filter(id__in=ids).update(is_removed=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-from rest_framework.mixins import ListModelMixin
-from rest_framework.generics import GenericAPIView
-class PersonellerListView(ListModelMixin, GenericAPIView):
-    queryset = Persons.objects.filter(is_removed=False).order_by('-id')
-    serializer_class = PersonellerSerializer
-
-    def get(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
