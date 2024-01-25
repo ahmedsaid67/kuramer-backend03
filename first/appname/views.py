@@ -1,8 +1,13 @@
 from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.generics import ListAPIView
+<<<<<<< HEAD
 from .models import Slider
 from .serializers import SliderSerializer,UserSerializer
+=======
+from .models import Sliders
+from .serializers import SlidersSerializer,UserSerializer
+>>>>>>> feature1
 from rest_framework import status
 
 
@@ -17,6 +22,10 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from rest_framework.authtoken.views import ObtainAuthToken
+<<<<<<< HEAD
+=======
+from .authentication import token_expire_handler
+>>>>>>> feature1
 
 from django.contrib.auth.models import User
 
@@ -33,6 +42,7 @@ class CustomAuthToken(ObtainAuthToken):
         return Response({'token': token.key})
 
 class CheckToken(APIView):
+<<<<<<< HEAD
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -46,12 +56,38 @@ class UserInfoView(APIView):
         user = request.user
         serializer = UserSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+=======
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({'message': 'Token is valid'})
+
+class Logout(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Get the token of the user from the request
+        try:
+            token = request.auth
+            # Delete the token to effectively log the user out
+            Token.objects.filter(key=token).delete()
+            return Response({"message": "Successfully logged out"}, status=status.HTTP_200_OK)
+        except:
+            return Response({"error": "Something went wrong"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserInfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, format=None):
+        user = request.user
+        serializer = UserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+>>>>>>> feature1
 
 
 
-class SliderListView(ListAPIView):
-    queryset = Slider.objects.filter(is_published=True)
-    serializer_class = SliderSerializer
 
 
 from rest_framework import viewsets
@@ -136,12 +172,51 @@ class MenuItemDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = MenuItemSerializer
     pagination_class = None
 
+
+
+
+from rest_framework.decorators import action
+
 # seçili menünün ögeleri listele
-class MenuSelectedItemList(generics.ListAPIView):
-    queryset = MenuItem.objects.filter(menu__selected=True,is_disabled=False)
+class MenuSelectedItemViewSet(viewsets.ModelViewSet):
+    queryset = MenuItem.objects.filter(menu__selected=True,is_removed=False)
     serializer_class = MenuItemSerializer
-    #permission_classes = [IsAuthenticated]
     pagination_class = None
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = MenuItem.objects.filter(menu__selected=True,durum=True, is_removed=False)
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['patch'])
+    def update_status(self, request):
+        changes = request.data
+        print(changes)
+        for item_id, status in changes.items():
+            try:
+                item = MenuItem.objects.get(id=item_id)
+                item.durum = status
+                item.save()
+            except MenuItem.DoesNotExist:
+                return Response({'error': f'Item with id {item_id} does not exist.'}, status=404)
+
+        return Response({'message': 'Items updated successfully.'})
 
 
 
@@ -150,7 +225,11 @@ class MenuSelectedItemList(generics.ListAPIView):
 
 # Personeller
 #personeltürü
+<<<<<<< HEAD
 from .models import PersonelTuru
+=======
+from .models import PersonelTuru,Persons
+>>>>>>> feature1
 from .serializers import PersonelTuruSerializer
 from rest_framework.decorators import action
 
@@ -158,7 +237,18 @@ class PersonelTuruViewSet(viewsets.ModelViewSet):
     queryset = PersonelTuru.objects.filter(is_removed=False).order_by('-id')
     serializer_class = PersonelTuruSerializer
 
+<<<<<<< HEAD
 
+=======
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+>>>>>>> feature1
 
     @action(detail=False, methods=['post'])
     def bulk_soft_delete(self, request):
@@ -166,6 +256,44 @@ class PersonelTuruViewSet(viewsets.ModelViewSet):
         PersonelTuru.objects.filter(id__in=ids).update(is_removed=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = PersonelTuru.objects.filter(status=True,is_removed=False).order_by('-id')
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # 'durum' değeri false ise ilgili VideoGaleri01 nesnelerini güncelle
+        if 'status' in serializer.validated_data and not serializer.validated_data['status']:
+            Persons.objects.filter(personel_turu=instance).update(personel_turu=None, durum=False)
+
+        return Response(serializer.data)
+
+
+
+
+from rest_framework.mixins import ListModelMixin
+from rest_framework.generics import GenericAPIView
+
+class PersonelTuruListView(ListModelMixin, GenericAPIView):
+    queryset = PersonelTuru.objects.filter(is_removed=False,status=True).order_by('-id')
+    serializer_class = PersonelTuruSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+#personeller
 
 from rest_framework.mixins import ListModelMixin
 from rest_framework.generics import GenericAPIView
@@ -184,9 +312,36 @@ class PersonelTuruListView(ListModelMixin, GenericAPIView):
 from .models import Persons
 from .serializers import PersonellerSerializer
 
+from django_filters import rest_framework as filters
+
+
+class PersonelFilter(filters.FilterSet):
+    kategori = filters.NumberFilter(field_name='personel_turu__id', method='filter_kategori')  # URL'de kategori olarak geçecek
+
+    def filter_kategori(self, queryset, name, value):
+        # Kategoriye göre filtreleme yaparken, aynı zamanda durum=True koşulunu da uygula
+        return queryset.filter(**{name: value, 'durum': True})
+
+
+    class Meta:
+        model = Persons
+        fields = ['kategori']
+
 class PersonellerViewSet(viewsets.ModelViewSet):
     queryset = Persons.objects.filter(is_removed=False).order_by('-id')
     serializer_class = PersonellerSerializer
+
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = PersonelFilter
+
+    def get_permissions(self):
+        if self.request.method == 'GET' or self.request.query_params.get('kategori') is not None:
+            # GET istekleri ve 'kategori' sorgu parametresi olan istekler için permission yok
+            permission_classes = []
+        else:
+            # Diğer tüm durumlar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
 
     @action(detail=False, methods=['post'])
     def bulk_soft_delete(self, request):
@@ -196,3 +351,1451 @@ class PersonellerViewSet(viewsets.ModelViewSet):
         # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
         Persons.objects.filter(id__in=ids).update(is_removed=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
+<<<<<<< HEAD
+=======
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Persons.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+
+### YAYINLAR
+#BROŞÜRLER
+
+from .models import Brosurler
+from .serializers import BrosurlerSerializer
+
+class BrosurlerViewSet(viewsets.ModelViewSet):
+    queryset = Brosurler.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = BrosurlerSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Brosurler.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Brosurler.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+# BÜLTENLER
+
+
+from .models import Bultenler
+from .serializers import BultenlerSerializer
+
+
+from django.shortcuts import get_object_or_404
+
+
+from .task import send_bulk_email,send_newsletter,send_newsletter01
+
+
+from django.core.mail import send_mail
+from .models import Abone
+from django.template.loader import render_to_string
+
+from django.conf import settings
+
+class BultenlerViewSet(viewsets.ModelViewSet):
+    queryset = Bultenler.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = BultenlerSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Bultenler.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Bultenler.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def send_bulten(self, request):
+        bulten_id = request.data.get('bulten_id')
+        if not bulten_id:
+            return Response({'error': 'Bülten ID gereklidir.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            bulten = Bultenler.objects.get(pk=bulten_id)
+        except Bultenler.DoesNotExist:
+            return Response({'error': 'Bülten bulunamadı.'}, status=status.HTTP_404_NOT_FOUND)
+
+        bulten_basligi = bulten.baslik
+        pdf_url = request.build_absolute_uri(bulten.pdf_dosya.url)
+
+        # Celery ile asenkron e-posta gönderimi başlat
+        #send_bulk_email.delay(bulten_basligi, pdf_url)
+        send_newsletter(bulten_basligi, pdf_url)
+
+        #send_newsletter.delay(bulten_basligi, pdf_url)
+
+
+        return Response({'message': 'Bülten gönderildi'}, status=status.HTTP_200_OK)
+
+
+
+
+class BultenlerListView(ListModelMixin, GenericAPIView):
+    queryset = Bultenler.objects.filter(is_removed=False,durum=True).order_by('-id')
+    serializer_class = BultenlerSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+
+
+# BÜLTEN ABONELERİ
+
+from .models import Abone
+from .serializers import AboneSerializer
+
+class AboneViewSet(viewsets.ModelViewSet):
+    queryset = Abone.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = AboneSerializer
+
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Abone.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+# E bülten
+
+from .models import Ebulten,Abone
+from .serializers import EbultenSerializer
+from rest_framework.exceptions import ValidationError
+class EbultenViewSet(viewsets.ModelViewSet):
+    queryset = Ebulten.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = EbultenSerializer
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Ebulten.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def create(self, request, *args, **kwargs):
+        if Abone.objects.all().count() <= 0:
+            # Raise a validation error if the count is 0 or less
+            raise ValidationError({'detail': 'E bülten abonesi bulunmamaktadır.'})
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ebulten_instance = serializer.save()  # Ebulten nesnesi oluşturulur
+
+        # Serializer'da tanımlı olan bulten_id'yi kullanarak ilgili Bultenler nesnesini bul
+        if 'bulten_id' in serializer.validated_data:
+            bulten_id = serializer.validated_data['bulten_id']
+            bulten_instance = Bultenler.objects.get(id=bulten_id)
+
+            if bulten_instance.pdf_dosya:
+                pdf_url = request.build_absolute_uri(bulten_instance.pdf_dosya.url)
+                #send_newsletter.delay(ebulten_instance.baslik, pdf_url, ebulten_instance.icerik )  #canlıda aktyif edeceğiz. alttakini pasif edeceğiz.
+                send_newsletter01(ebulten_instance.baslik, pdf_url, ebulten_instance.icerik)
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+
+
+
+
+
+
+
+
+
+## TEMEL KONU VE KAVRAMLAR
+## TEMEL KONULAR
+
+from .models import Temelkonular
+from .serializers import TemelkonularSerializer
+
+class TemelkonularViewSet(viewsets.ModelViewSet):
+    queryset = Temelkonular.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = TemelkonularSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Temelkonular.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Temelkonular.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+## TEMEL KAVRAMLAR
+
+from .models import Temelkavramlar
+from .serializers import TemelkavramlarSerializer
+
+class TemelkavramlarViewSet(viewsets.ModelViewSet):
+    queryset = Temelkavramlar.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = TemelkavramlarSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Temelkavramlar.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Temelkavramlar.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+###### YAYINLARIMIZDAN SEÇMELER
+
+
+from .models import YayinlarimizdanSecmeler
+from .serializers import YayinlarimizdanSecmelerSerializer
+
+class YayinlarimizdanSecmelerViewSet(viewsets.ModelViewSet):
+    queryset = YayinlarimizdanSecmeler.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = YayinlarimizdanSecmelerSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        YayinlarimizdanSecmeler.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = YayinlarimizdanSecmeler.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+### BASINDA BİZ
+
+
+# YAZILI BASIN
+
+from .models import YaziliBasin
+from .serializers import YaziliBasinSerializer
+
+class YaziliBasinViewSet(viewsets.ModelViewSet):
+    queryset = YaziliBasin.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = YaziliBasinSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        YaziliBasin.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = YaziliBasin.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+# GORSEL BASIN
+
+
+from .models import GorselBasin
+from .serializers import GorselBasinSerializer
+
+class GorselBasinViewSet(viewsets.ModelViewSet):
+    queryset = GorselBasin.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = GorselBasinSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        GorselBasin.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = GorselBasin.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+### KAMUOYU DUYURULARI
+
+from .models import KamuoyuDuyurulari
+from .serializers import KamuoyuDuyurulariSerializer
+
+class KamuoyuDuyurulariViewSet(viewsets.ModelViewSet):
+    queryset = KamuoyuDuyurulari.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = KamuoyuDuyurulariSerializer
+    lookup_field = 'slug'
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        KamuoyuDuyurulari.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = KamuoyuDuyurulari.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+#### MÜSHAFLAR
+
+# MÜSHAF KATEGORİ
+
+from .models import MushafKategori,Mushaflar
+from .serializers import MushafKategoriSerializer
+
+
+
+class MushafKategoriViewSet(viewsets.ModelViewSet):
+    queryset = MushafKategori.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = MushafKategoriSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        MushafKategori.objects.filter(id__in=ids).update(is_removed=True)
+
+        Mushaflar.objects.filter(mushaf_kategori__id__in=ids).update(mushaf_kategori=None)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = MushafKategori.objects.filter(durum=True,is_removed=False).order_by('-id')
+
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # 'durum' değeri false ise ilgili VideoGaleri01 nesnelerini güncelle
+        if 'durum' in serializer.validated_data and not serializer.validated_data['durum']:
+            Mushaflar.objects.filter(mushaf_kategori=instance).update(mushaf_kategori=None, durum=False)
+
+        return Response(serializer.data)
+
+
+class MushafKategoriListView(ListModelMixin, GenericAPIView):
+    queryset = MushafKategori.objects.filter(is_removed=False,durum=True).order_by('-id')
+    serializer_class = MushafKategoriSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+
+# MÜSHAFLAR
+
+from .models import Mushaflar
+from .serializers import MushaflarSerializer
+
+from django_filters import rest_framework as filters
+
+
+class MushafFilter(filters.FilterSet):
+    kategori = filters.NumberFilter(field_name='mushaf_kategori__id', method='filter_kategori')  # URL'de kategori olarak geçecek
+
+    def filter_kategori(self, queryset, name, value):
+        # Kategoriye göre filtreleme yaparken, aynı zamanda durum=True koşulunu da uygula
+        return queryset.filter(**{name: value, 'durum': True})
+
+    class Meta:
+        model = Mushaflar
+        fields = ['kategori']
+
+    # tüm musafları mushafkategoriyi göre filtreleyebilioruz bu sayede.
+    # mushafkategorinin id sini istiyoruz o idye göre mushafkategoriye ulasıyoruz. ve mushaflarda mushaf_kategor alanı
+    # ulaşılan mushafkategor ile dolu olan mushafları cekıyoruz. ve pgainationda mevcut.
+    # http://127.0.0.1:8000/api/appname/mushaflar/?kategori=1  ---> bir örnek.
+    # buradaki 1 , mushafkategori nesnenisin id sini temsil eder.
+    # yani id 'si 1 olan mushaf kategorisi ile ilişkili tüm mushafları getirir.
+
+
+
+class MushaflarViewSet(viewsets.ModelViewSet):
+    queryset = Mushaflar.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = MushaflarSerializer
+
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = MushafFilter
+
+    def get_permissions(self):
+        if self.request.method == 'GET' or self.request.query_params.get('kategori') is not None:
+            # GET istekleri ve 'kategori' sorgu parametresi olan istekler için permission yok
+            permission_classes = []
+        else:
+            # Diğer tüm durumlar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Mushaflar.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Mushaflar.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+# MÜSHAFLAR FARKLARI
+
+from .models import Mushaffarklari
+from .serializers import MushaffarklariSerializer
+
+class MushaffarklariViewSet(viewsets.ModelViewSet):
+    queryset = Mushaffarklari.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = MushaffarklariSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Mushaffarklari.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Mushaffarklari.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+# KitapKategori
+
+from .models import KitapKategori,Kitap
+from .serializers import KitapKategoriSerializer
+
+class KitapKategoriViewSet(viewsets.ModelViewSet):
+    queryset = KitapKategori.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = KitapKategoriSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        KitapKategori.objects.filter(id__in=ids).update(is_removed=True)
+
+        Kitap.objects.filter(kitap_kategori__id__in=ids).update(kitap_kategori=None)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = KitapKategori.objects.filter(durum=True,is_removed=False).order_by('-id')
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+    ## burası zaten ön yüz için yazılmış silinmöiş ve aktif olmayan nesneleri döndürmemeyi sağlıyordu.
+    # biz ek olarak diğerlerinden ayrı burada paginations'u kaldırdık. çünkü kullanıcı arayüzü tarafında
+    # kategorinin tamamının listelenmesini istioruz.
+
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # 'durum' değeri false ise ilgili VideoGaleri01 nesnelerini güncelle
+        if 'durum' in serializer.validated_data and not serializer.validated_data['durum']:
+            Kitap.objects.filter(kitap_kategori=instance).update(kitap_kategori=None, durum=False)
+
+        return Response(serializer.data)
+
+class KitapKategoriListView(ListModelMixin, GenericAPIView):
+    queryset = KitapKategori.objects.filter(is_removed=False,durum=True).order_by('-id')
+    serializer_class = KitapKategoriSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+# Kitaplar
+
+from .models import Kitap
+from .serializers import KitaplarSerializer
+from django_filters import rest_framework as filters
+
+
+class KitapFilter(filters.FilterSet):
+    kategori = filters.NumberFilter(field_name='kitap_kategori__id', method='filter_kategori')
+
+    def filter_kategori(self, queryset, name, value):
+        # Kategoriye göre filtreleme yaparken, aynı zamanda durum=True koşulunu da uygula
+        return queryset.filter(**{name: value, 'durum': True})
+
+    class Meta:
+        model = Kitap
+        fields = ['kategori']
+class KitaplarViewSet(viewsets.ModelViewSet):
+    queryset = Kitap.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = KitaplarSerializer
+    lookup_field = 'slug'
+
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = KitapFilter
+
+    def get_permissions(self):
+        if self.request.method == 'GET' or self.request.query_params.get('kategori') is not None:
+            # GET istekleri ve 'kategori' sorgu parametresi olan istekler için permission yok
+            permission_classes = []
+        else:
+            # Diğer tüm durumlar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Kitap.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Kitap.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+
+## MEDYA GALERİ
+# VİDEO GALERİ KATEGORİSİ
+
+from .models import VideoGaleriKategori,VideoGaleri01
+from .serializers import VideoGaleriKategoriSerializer
+
+class VideoGaleriKategoriViewSet(viewsets.ModelViewSet):
+    queryset = VideoGaleriKategori.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = VideoGaleriKategoriSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        VideoGaleriKategori.objects.filter(id__in=ids).update(is_removed=True)
+        VideoGaleri01.objects.filter(videogaleri_kategori__id__in=ids).update(videogaleri_kategori=None)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = VideoGaleriKategori.objects.filter(durum=True,is_removed=False).order_by('-id')
+
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # 'durum' değeri false ise ilgili VideoGaleri01 nesnelerini güncelle
+        if 'durum' in serializer.validated_data and not serializer.validated_data['durum']:
+            VideoGaleri01.objects.filter(videogaleri_kategori=instance).update(videogaleri_kategori=None, durum=False)
+
+        return Response(serializer.data)
+
+
+
+
+
+
+
+class VideoGaleriKategoriListView(ListModelMixin, GenericAPIView):
+    queryset = VideoGaleriKategori.objects.filter(is_removed=False,durum=True).order_by('-id')
+    serializer_class = VideoGaleriKategoriSerializer
+    permission_classes = [IsAuthenticated]
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+
+## VİDEO GALERİ
+
+
+from .models import VideoGaleri01,Sempozyumlar,Calistaylar,Konferanslar,Arastirmalar,Egitimler
+from .serializers import VideoGaleri01Serializer
+
+class VideoGaleri01Filter(filters.FilterSet):
+    kategori = filters.CharFilter(field_name='videogaleri_kategori__slug', method='filter_kategori')  # URL'de kategori olarak geçecek
+    def filter_kategori(self, queryset, name, value):
+        # Kategoriye göre filtreleme yaparken, aynı zamanda durum=True koşulunu da uygula
+        return queryset.filter(**{name: value, 'durum': True})
+    class Meta:
+        model = VideoGaleri01
+        fields = ['kategori']
+class VideoGaleri01ViewSet(viewsets.ModelViewSet):
+    queryset = VideoGaleri01.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = VideoGaleri01Serializer
+
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = VideoGaleri01Filter
+
+    def get_permissions(self):
+        if self.request.method == 'GET' or self.request.query_params.get('kategori') is not None:
+            # GET istekleri ve 'kategori' sorgu parametresi olan istekler için permission yok
+            permission_classes = []
+        else:
+            # Diğer tüm durumlar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        VideoGaleri01.objects.filter(id__in=ids).update(is_removed=True)
+
+        Sempozyumlar.objects.filter(yayin__id__in=ids).update(yayin=None)
+        Calistaylar.objects.filter(yayin__id__in=ids).update(yayin=None)
+        Konferanslar.objects.filter(yayin__id__in=ids).update(yayin=None)
+        Arastirmalar.objects.filter(yayin__id__in=ids).update(yayin=None)
+        Egitimler.objects.filter(yayin__id__in=ids).update(yayin=None)
+
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = VideoGaleri01.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if 'durum' in serializer.validated_data and not serializer.validated_data['durum']:
+            Sempozyumlar.objects.filter(yayin=instance).update(yayin=None)
+            Calistaylar.objects.filter(yayin=instance).update(yayin=None)
+            Konferanslar.objects.filter(yayin=instance).update(yayin=None)
+            Arastirmalar.objects.filter(yayin=instance).update(yayin=None)
+            Egitimler.objects.filter(yayin=instance).update(yayin=None)
+
+        return Response(serializer.data)
+
+
+
+class VideoGaleri01ListView(ListModelMixin, GenericAPIView):
+    queryset = VideoGaleri01.objects.filter(is_removed=False,durum=True).order_by('-id')
+    serializer_class = VideoGaleri01Serializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+## FOTOGALERİ
+# FOTOGALERİ KATEGORİ
+
+from .models import FotoGaleriKategori,FotoGaleri
+from .serializers import FotoGaleriKategoriSerializer
+
+class FotoGaleriKategoriViewSet(viewsets.ModelViewSet):
+    queryset = FotoGaleriKategori.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = FotoGaleriKategoriSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        FotoGaleriKategori.objects.filter(id__in=ids).update(is_removed=True)
+        FotoGaleri.objects.filter(fotogaleri_kategori__id__in=ids).update(fotogaleri_kategori=None)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = FotoGaleriKategori.objects.filter(durum=True,is_removed=False).order_by('-id')
+
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # 'durum' değeri false ise ilgili VideoGaleri01 nesnelerini güncelle
+        if 'durum' in serializer.validated_data and not serializer.validated_data['durum']:
+            FotoGaleri.objects.filter(fotogaleri_kategori=instance).update(fotogaleri_kategori=None, durum=False)
+
+        return Response(serializer.data)
+
+class FotoGaleriKategoriListView(ListModelMixin, GenericAPIView):
+    queryset = FotoGaleriKategori.objects.filter(is_removed=False,durum=True).order_by('-id')
+    serializer_class = FotoGaleriKategoriSerializer
+    permission_classes = [IsAuthenticated]
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+
+# FOTOGALERİ
+
+
+from .models import FotoGaleri
+from .serializers import FotoGaleriSerializer
+
+class FotoGaleriFilter(filters.FilterSet):
+    kategori = filters.CharFilter(field_name='fotogaleri_kategori__slug', method='filter_kategori')  # URL'de kategori olarak geçecek
+
+    def filter_kategori(self, queryset, name, value):
+        # Kategoriye göre filtreleme yaparken, aynı zamanda durum=True koşulunu da uygula
+        return queryset.filter(**{name: value, 'durum': True})
+
+    class Meta:
+        model = FotoGaleri
+        fields = ['kategori']
+class FotoGaleriViewSet(viewsets.ModelViewSet):
+    queryset = FotoGaleri.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = FotoGaleriSerializer
+
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = FotoGaleriFilter
+
+    def get_permissions(self):
+        if self.request.method == 'GET' or self.request.query_params.get('kategori') is not None:
+            # GET istekleri ve 'kategori' sorgu parametresi olan istekler için permission yok
+            permission_classes = []
+        else:
+            # Diğer tüm durumlar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        FotoGaleri.objects.filter(id__in=ids).update(is_removed=True)
+
+        Sempozyumlar.objects.filter(album__id__in=ids).update(album=None)
+        Calistaylar.objects.filter(album__id__in=ids).update(album=None)
+        Konferanslar.objects.filter(album__id__in=ids).update(album=None)
+        Arastirmalar.objects.filter(album__id__in=ids).update(album=None)
+        Egitimler.objects.filter(album__id__in=ids).update(album=None)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = FotoGaleri.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if 'durum' in serializer.validated_data and not serializer.validated_data['durum']:
+            Sempozyumlar.objects.filter(album=instance).update(album=None)
+            Calistaylar.objects.filter(album=instance).update(album=None)
+            Konferanslar.objects.filter(album=instance).update(album=None)
+            Arastirmalar.objects.filter(album=instance).update(album=None)
+            Egitimler.objects.filter(album=instance).update(album=None)
+
+        return Response(serializer.data)
+
+
+class FotoGaleriListView(ListModelMixin, GenericAPIView):
+    queryset = FotoGaleri.objects.filter(is_removed=False, durum=True).order_by('-id')
+    serializer_class = FotoGaleriSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+
+## IMAGE
+
+from .models import Image
+from .serializers import ImageSerializer
+
+class ImageFilter(filters.FilterSet):
+    kategori = filters.NumberFilter(field_name='album__id')  # URL'de kategori olarak geçecek
+
+    class Meta:
+        model = Image
+        fields = ['kategori']
+class ImageViewSet(viewsets.ModelViewSet):
+    queryset = Image.objects.filter(is_removed=False).select_related('album').order_by('-id')
+    serializer_class = ImageSerializer
+
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_class = ImageFilter
+    pagination_class = None
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Image.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+## FALİYETLER
+# SEMPOZYUMLAR
+
+from .models import Sempozyumlar
+from .serializers import SempozyumlarSerializer
+
+class SempozyumlarViewSet(viewsets.ModelViewSet):
+    queryset = Sempozyumlar.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = SempozyumlarSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Sempozyumlar.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Sempozyumlar.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+# ÇALIŞTAYLAR
+
+from .models import Calistaylar
+from .serializers import CalistaylarSerializer
+
+class CalistaylarViewSet(viewsets.ModelViewSet):
+    queryset = Calistaylar.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = CalistaylarSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Calistaylar.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Calistaylar.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+# EĞİTİMLER
+
+from .models import Egitimler
+from .serializers import EgitimlerSerializer
+
+class EgitimlerViewSet(viewsets.ModelViewSet):
+    queryset = Egitimler.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = EgitimlerSerializer
+    lookup_field = 'slug'
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Egitimler.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Egitimler.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+
+# KONFERANS
+
+from .models import Konferanslar
+from .serializers import KonferanslarSerializer
+
+class KonferanslarViewSet(viewsets.ModelViewSet):
+    queryset = Konferanslar.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = KonferanslarSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Konferanslar.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Konferanslar.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+
+# ARAŞTIRMALAR
+
+from .models import Arastirmalar
+from .serializers import ArastirmalarSerializer
+
+class ArastirmalarViewSet(viewsets.ModelViewSet):
+    queryset = Arastirmalar.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = ArastirmalarSerializer
+    lookup_field = 'slug'
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Arastirmalar.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Arastirmalar.objects.filter(durum=True,is_removed=False).order_by('-id')
+        page = self.paginate_queryset(active)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+# PUPPUP
+
+from .models import Puppup
+from .serializers import PuppupSerializer
+
+
+class PuppupViewSet(viewsets.ModelViewSet):
+    queryset = Puppup.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = PuppupSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Puppup.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Puppup.objects.filter(durum=True, is_removed=False).order_by('-id')
+
+        # Varsayılan paginasyonu devre dışı bırak
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+# SLİDERS
+from django.db.models import F
+
+
+class SlidersViewSet(viewsets.ModelViewSet):
+    queryset = Sliders.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = SlidersSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        Sliders.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = Sliders.objects.filter(durum=True, is_removed=False).order_by('-id')
+
+        # Varsayılan paginasyonu devre dışı bırak
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        order = request.data.get('order', None)
+
+        if order is not None:
+            existing_slider = Sliders.objects.filter(order=order).first()
+
+            if existing_slider:
+                Sliders.objects.filter(order__gte=order).update(order=F('order') + 1)
+
+        # Koddan önce super().create() çağrılarak üst sınıfın create yöntemi çağrılır.
+        response = super().create(request, *args, **kwargs)
+
+        return response
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        order = request.data.get('order', None)
+
+        if order is not None and order != instance.order:
+            existing_slider = instance
+
+            if existing_slider and isinstance(existing_slider, Sliders):
+                if existing_slider.order < int(order):
+                    Sliders.objects.filter(order__range=(existing_slider.order, int(order))).exclude(
+                        pk=instance.pk).update(
+                        order=F('order') - 1)
+                elif existing_slider.order > int(order):
+                    Sliders.objects.filter(order__range=(int(order), existing_slider.order)).exclude(
+                        pk=instance.pk).update(
+                        order=F('order') + 1)
+
+        return super().update(request, *args, partial=partial, **kwargs)
+
+
+# BAŞLIK GÖRSEL
+
+from .models import BalikGorsel
+from .serializers import BalikGorselSerializer
+
+
+class BalikGorselViewSet(viewsets.ModelViewSet):
+    queryset = BalikGorsel.objects.filter(is_removed=False).order_by('-id')
+    serializer_class = BalikGorselSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'get_active']:
+            # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
+            permission_classes = []
+        else:
+            # Diğer tüm action'lar için IsAuthenticated kullan
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
+    @action(detail=False, methods=['post'])
+    def bulk_soft_delete(self, request):
+        ids = request.data.get('ids', [])
+        # Güvenli bir şekilde int listesi oluştur
+        ids = [int(id) for id in ids if id.isdigit()]
+        # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
+        BalikGorsel.objects.filter(id__in=ids).update(is_removed=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'])
+    def get_active(self, request):
+        active = BalikGorsel.objects.filter(durum=True, is_removed=False).order_by('-id')
+
+        # Varsayılan paginasyonu devre dışı bırak
+        serializer = self.get_serializer(active, many=True)
+        return Response(serializer.data)
+>>>>>>> feature1
