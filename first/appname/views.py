@@ -1,33 +1,22 @@
-from django.shortcuts import render
-from rest_framework.response import Response
-from rest_framework.generics import ListAPIView
-<<<<<<< HEAD
-from .models import Slider
-from .serializers import SliderSerializer,UserSerializer
-=======
+
+
 from .models import Sliders
 from .serializers import SlidersSerializer,UserSerializer
->>>>>>> feature1
-from rest_framework import status
 
 
-from django.utils.translation import gettext as _
+
+
+
 from rest_framework.authtoken.models import Token
-from rest_framework.status import (
-    HTTP_200_OK,
-)
+
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.response import Response
 
 from rest_framework.authtoken.views import ObtainAuthToken
-<<<<<<< HEAD
-=======
-from .authentication import token_expire_handler
->>>>>>> feature1
 
-from django.contrib.auth.models import User
+
 
 
 
@@ -42,7 +31,6 @@ class CustomAuthToken(ObtainAuthToken):
         return Response({'token': token.key})
 
 class CheckToken(APIView):
-<<<<<<< HEAD
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -56,7 +44,7 @@ class UserInfoView(APIView):
         user = request.user
         serializer = UserSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
-=======
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -83,8 +71,6 @@ class UserInfoView(APIView):
         user = request.user
         serializer = UserSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
->>>>>>> feature1
 
 
 
@@ -225,11 +211,11 @@ class MenuSelectedItemViewSet(viewsets.ModelViewSet):
 
 # Personeller
 #personeltürü
-<<<<<<< HEAD
+
 from .models import PersonelTuru
-=======
+
 from .models import PersonelTuru,Persons
->>>>>>> feature1
+
 from .serializers import PersonelTuruSerializer
 from rest_framework.decorators import action
 
@@ -237,9 +223,6 @@ class PersonelTuruViewSet(viewsets.ModelViewSet):
     queryset = PersonelTuru.objects.filter(is_removed=False).order_by('-id')
     serializer_class = PersonelTuruSerializer
 
-<<<<<<< HEAD
-
-=======
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'get_active']:
             # 'list', 'retrieve' ve 'get_active' için herhangi bir permission gerekmez
@@ -248,7 +231,7 @@ class PersonelTuruViewSet(viewsets.ModelViewSet):
             # Diğer tüm action'lar için IsAuthenticated kullan
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
->>>>>>> feature1
+
 
     @action(detail=False, methods=['post'])
     def bulk_soft_delete(self, request):
@@ -351,8 +334,7 @@ class PersonellerViewSet(viewsets.ModelViewSet):
         # Belirtilen ID'lere sahip nesneleri soft delete işlemi ile güncelle
         Persons.objects.filter(id__in=ids).update(is_removed=True)
         return Response(status=status.HTTP_204_NO_CONTENT)
-<<<<<<< HEAD
-=======
+
 
     @action(detail=False, methods=['get'])
     def get_active(self, request):
@@ -1798,4 +1780,4 @@ class BalikGorselViewSet(viewsets.ModelViewSet):
         # Varsayılan paginasyonu devre dışı bırak
         serializer = self.get_serializer(active, many=True)
         return Response(serializer.data)
->>>>>>> feature1
+

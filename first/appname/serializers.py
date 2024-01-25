@@ -1,9 +1,7 @@
 from rest_framework import serializers
-<<<<<<< HEAD
-from .models import Slider
-=======
+
 from .models import Sliders
->>>>>>> feature1
+
 
 from django.contrib.auth.models import User
 
@@ -77,11 +75,7 @@ class PersonellerSerializer(serializers.ModelSerializer):
         instance.img = validated_data.get('img', instance.img)
         instance.durum = validated_data.get('durum', instance.durum)
         instance.is_removed = validated_data.get('is_removed', instance.is_removed)
-<<<<<<< HEAD
 
-        instance.save()
-        return instance
-=======
 
         instance.save()
         return instance
@@ -367,7 +361,7 @@ class VideoGaleri01Serializer(serializers.ModelSerializer):
         instance.videogaleri_kategori = videogaleri_kategori
         instance.durum = validated_data.get('durum', instance.durum)
         instance.is_removed = validated_data.get('is_removed', instance.is_removed)
->>>>>>> feature1
+
 
         instance.save()
         return instance

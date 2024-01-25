@@ -1,10 +1,4 @@
-<<<<<<< HEAD
-from django.urls import path,include
-from .views import SliderListView, MenuViewSet, MenuItemListCreateView, MenuItemByMenuView,\
-    MenuItemDetailView, MenuSelectedItemList,CustomAuthToken,CheckToken,UserInfoView
-from rest_framework.routers import DefaultRouter
-from .views import PersonelTuruViewSet,PersonellerViewSet,PersonelTuruListView
-=======
+
 from django.urls import path, include
 from .views import SlidersViewSet, MenuViewSet, MenuItemListCreateView, MenuItemByMenuView, \
     MenuItemDetailView, MenuSelectedItemViewSet, CustomAuthToken, CheckToken, UserInfoView
@@ -21,7 +15,7 @@ from .views import PersonelTuruViewSet, PersonellerViewSet, PersonelTuruListView
     BalikGorselViewSet,AboneViewSet,EbultenViewSet,BultenlerListView,Logout
 
 
->>>>>>> feature1
+
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -156,12 +150,6 @@ urlpatterns = [
     path('', include(router_personel.urls)),
     
 
-<<<<<<< HEAD
-    #auth apileri
-    path('token/', CustomAuthToken.as_view(), name='api-token'),
-    path('check-token/', CheckToken.as_view(), name='check-token'),
-    path('user-info/', UserInfoView.as_view(), name='user-info'),
-=======
     ##yayınlar
     #broşürler
     path('', include(router_brosurler.urls)),
@@ -172,7 +160,7 @@ urlpatterns = [
     path('', include(router_abone.urls)),
     #ebülten
     path('', include(router_ebulten.urls)),
->>>>>>> feature1
+
 
 
     ##temelkonu ve kavramlar

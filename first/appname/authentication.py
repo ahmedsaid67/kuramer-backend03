@@ -1,6 +1,4 @@
-<<<<<<< HEAD
 
-=======
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import AuthenticationFailed
@@ -59,4 +57,4 @@ class ExpiringTokenAuthentication(TokenAuthentication):
             raise AuthenticationFailed("The Token is expired")
 
         return (token.user, token)
->>>>>>> feature1
+
