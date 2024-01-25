@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #555;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .email-container p {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .extra-margin {
+            margin-bottom: 20px; /* İki paragraf arasına ekstra mesafe */
+        }
+        .button {
+            background-color: #007bff;
+            color: #ffffff;
+            padding: 10px 20px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 0.8em;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <h1>Bültenimiz Yayında!</h1>
+        <p class="extra-margin">{{ bulten_icerik }}</p> <!-- İlk paragrafa ekstra mesafe eklendi -->
+        <p>Bültenimizi okumak için aşağıdaki linke tıklayın:</p>
+        <a href="{{ pdf_url }}" class="button">Bülteni İndir</a> <!-- Dinamik PDF URL -->
+        <div class="footer">
+            <p>Bu e-posta size Kuramer tarafından gönderilmiştir.</p>
+            <p>İletişim Bilgileri: info@kuramer.com | +90 123 456 78 90</p>
+        </div>
+    </div>
+</body>
+</html>
+
+
+

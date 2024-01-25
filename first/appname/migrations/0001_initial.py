@@ -22,15 +22,6 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
-            name='Slider',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200)),
-                ('img', models.ImageField(blank=True, null=True, upload_to=appname.models.get_image_path)),
-                ('is_published', models.BooleanField(default=False)),
-            ],
-        ),
-        migrations.CreateModel(
             name='MenuItem',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
